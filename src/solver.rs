@@ -23,7 +23,7 @@ pub trait SolverGroup: Database {
 
 impl<T: Database + ?Sized> SolverGroup for T {}
 
-#[salsa::tracked]
+#[salsa::tracked(cycle_result=solve_expr_handle_cycle)]
 fn solve_expr<'db>(db: &'db dyn Database, expr_id: ExprId<'db>) -> Option<u32> {
     match expr_id.long(db) {
         Expr::Number(num) => Some(*num),
@@ -42,4 +42,9 @@ fn solve_expr<'db>(db: &'db dyn Database, expr_id: ExprId<'db>) -> Option<u32> {
             })
         }
     }
+}
+
+/// Return `None` since we cannot solve in case of a cycle.
+fn solve_expr_handle_cycle<'db>(_db: &'db dyn Database, _expr_id: ExprId<'db>) -> Option<u32> {
+    None
 }
