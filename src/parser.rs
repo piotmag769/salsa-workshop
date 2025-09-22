@@ -1,29 +1,60 @@
-use crate::input::spreadsheet_input;
-use crate::ir::{Expr, ExprId, Op, StrId};
-use crate::lexer::Lexer;
 use salsa::Database;
 
-pub fn parse_cell_contents<'db>(db: &'db dyn Database) -> Option<()> {
-    let cells = spreadsheet_input(db).cells(db);
-    for cell in cells.iter().flatten() {
-        let str_id = StrId::new(db, cell);
-        let expr_id = parse_cell_content(db, str_id);
-        eprintln!("{:?}", expr_id.map(|x| x.long(db)));
-        // TODO: Evaluate the expression.
-        // evaluate_expr(db, expr_id);
+use crate::input::RawSpreadsheet;
+use crate::ir::{Expr, ExprId, Op, StrId};
+use crate::lexer::Lexer;
+
+pub trait ParserGroup: Database {
+    fn parse_spreadsheet<'db>(&'db self) -> ParsedSpreadsheet<'db> {
+        parse_spreadsheet(self.as_dyn_database())
     }
 
-    Some(())
+    fn parse_cell_content<'db>(&'db self, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
+        parse_cell_content(self.as_dyn_database(), cell_content)
+    }
+
+    fn spreadsheet_input(&self) -> RawSpreadsheet {
+        spreadsheet_input(self.as_dyn_database())
+    }
 }
 
-// #[salsa::tracked]
-// fn evaluate_expr<'db>(db: &'db dyn Database, expr: ExprId<'db>) -> Option<u32> {
-//     None
-// }
+impl<T: Database + ?Sized> ParserGroup for T {}
+
+// A tracked query for getting input.
+#[salsa::tracked]
+fn spreadsheet_input(db: &dyn Database) -> RawSpreadsheet {
+    RawSpreadsheet::new(db, Default::default())
+}
+
+#[salsa::tracked]
+pub struct ParsedSpreadsheet<'db> {
+    #[tracked]
+    #[returns(ref)]
+    pub cells: Vec<Vec<Option<ExprId<'db>>>>,
+}
+
+#[salsa::tracked]
+fn parse_spreadsheet<'db>(db: &'db dyn Database) -> ParsedSpreadsheet<'db> {
+    let raw_cells = spreadsheet_input(db).cells(db);
+
+    let parsed_cells = raw_cells
+        .iter()
+        .map(|x| {
+            x.iter()
+                .map(|cell| {
+                    let str_id = StrId::new(db, cell);
+                    parse_cell_content(db, str_id)
+                })
+                .collect()
+        })
+        .collect();
+
+    ParsedSpreadsheet::new(db, parsed_cells)
+}
 
 #[salsa::tracked]
 fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
-    let mut lexer = Lexer::new(&cell_content.long(db));
+    let mut lexer = Lexer::new(cell_content.long(db));
 
     let mut already_parsed_expr = None;
     let mut pending_op = None;
@@ -32,7 +63,7 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
         let current_expr = lexer
             // Try number
             .number()
-            .map(|num| Expr::Number(num))
+            .map(Expr::Number)
             // Try cell cords if there was no number.
             .or_else(|| {
                 lexer
