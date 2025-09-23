@@ -23,10 +23,25 @@ pub trait SolverGroup: Database {
 
 impl<T: Database + ?Sized> SolverGroup for T {}
 
+#[salsa::tracked]
 fn solve_expr<'db>(
     db: &'db dyn Database,
     expr_id: ExprId<'db>,
     parsed_spreadsheet: ParsedSpreadsheet<'db>,
 ) -> Option<u32> {
-    todo!("Implement me");
+    match expr_id.long(db) {
+        Expr::Number(num) => Some(*num),
+        Expr::CellCords { row, col } => {
+            let cell_content = parsed_spreadsheet.cells(db)[*row as usize][*col as usize]?;
+            solve_expr(db, cell_content, parsed_spreadsheet)
+        }
+        Expr::Op(lhs, op, rhs) => {
+            let lhs_val = solve_expr(db, *lhs, parsed_spreadsheet)?;
+            let rhs_val = solve_expr(db, *rhs, parsed_spreadsheet)?;
+            Some(match op {
+                Op::Add => lhs_val + rhs_val,
+                Op::Subtract => lhs_val - rhs_val,
+            })
+        }
+    }
 }
