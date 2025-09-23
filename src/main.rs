@@ -54,7 +54,7 @@ fn main() {
     queue.reverse();
     while let Some(cells) = queue.pop() {
         // Set new input.
-        todo!("set `cells` in `raw_spreadsheet` to `cells`");
+        raw_spreadsheet.set_cells(&mut db).to(cells.to_vec());
 
         // Run queries.
         let parsed_spreadsheet = db.parse_spreadsheet(raw_spreadsheet);
