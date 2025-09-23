@@ -17,7 +17,7 @@ pub enum Op {
     Subtract,
 }
 
-#[salsa::interned(debug)]
+#[salsa::interned]
 pub struct StrId<'db> {
     #[returns(ref)]
     pub long: String,

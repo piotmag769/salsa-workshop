@@ -1,5 +1,5 @@
-use super::parser::{ParsedSpreadsheet, ParserGroup};
-use crate::ir::{Expr, ExprId, Op, StrId};
+use super::parser::ParsedSpreadsheet;
+use crate::ir::{Expr, ExprId, Op};
 
 use salsa::Database;
 
@@ -12,9 +12,9 @@ pub trait SolverGroup: Database {
         parsed_spreadsheet
             .cells(db)
             .iter()
-            .map(|x| {
-                x.iter()
-                    .map(|expr_id| solve_expr(db, (*expr_id)?))
+            .map(|row| {
+                row.iter()
+                    .map(|expr_id| solve_expr(db, (*expr_id)?, parsed_spreadsheet))
                     .collect()
             })
             .collect()
@@ -23,28 +23,10 @@ pub trait SolverGroup: Database {
 
 impl<T: Database + ?Sized> SolverGroup for T {}
 
-#[salsa::tracked(cycle_result=solve_expr_handle_cycle)]
-fn solve_expr<'db>(db: &'db dyn Database, expr_id: ExprId<'db>) -> Option<u32> {
-    match expr_id.long(db) {
-        Expr::Number(num) => Some(*num),
-        Expr::CellCords { row, col } => {
-            let cell_content = &db.spreadsheet_input().cells(db)[*row as usize][*col as usize];
-            let str_id = StrId::new(db, cell_content);
-            let cell_content = db.parse_cell_content(str_id)?;
-            solve_expr(db, cell_content)
-        }
-        Expr::Op(lhs, op, rhs) => {
-            let lhs_val = solve_expr(db, *lhs)?;
-            let rhs_val = solve_expr(db, *rhs)?;
-            Some(match op {
-                Op::Add => lhs_val + rhs_val,
-                Op::Subtract => lhs_val - rhs_val,
-            })
-        }
-    }
-}
-
-/// Return `None` since we cannot solve in case of a cycle.
-fn solve_expr_handle_cycle<'db>(_db: &'db dyn Database, _expr_id: ExprId<'db>) -> Option<u32> {
-    None
+fn solve_expr<'db>(
+    db: &'db dyn Database,
+    expr_id: ExprId<'db>,
+    parsed_spreadsheet: ParsedSpreadsheet<'db>,
+) -> Option<u32> {
+    todo!("Implement me");
 }

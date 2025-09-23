@@ -1,3 +1,4 @@
+use salsa::EventKind;
 use std::sync::{Arc, Mutex};
 
 #[salsa::db]
@@ -15,10 +16,25 @@ impl Default for SpreadsheetDatabase {
         Self {
             storage: salsa::Storage::new(Some(Box::new({
                 let logs = logs.clone();
-                move |event| {
-                    // eprintln!("Event: {event:?}");
-                    let mut logs = logs.lock().unwrap();
-                    logs.push(format!("Event: {:?}", event.kind))
+                move |event| match event.kind {
+                    EventKind::DidValidateMemoizedValue { .. }
+                    | EventKind::WillBlockOn { .. }
+                    | EventKind::WillExecute { .. }
+                    | EventKind::WillIterateCycle { .. }
+                    | EventKind::DidDiscard { .. }
+                    | EventKind::DidSetCancellationFlag => {
+                        eprintln!("{event:?}");
+                        let mut logs = logs.lock().unwrap();
+                        logs.push(format!("{:?}", event.kind))
+                    }
+
+                    EventKind::DidDiscardAccumulated { .. }
+                    | EventKind::DidInternValue { .. }
+                    | EventKind::DidReuseInternedValue { .. }
+                    | EventKind::DidValidateInternedValue { .. } => {}
+
+                    EventKind::WillDiscardStaleOutput { .. } | EventKind::WillCheckCancellation => {
+                    }
                 }
             }))),
             logs,
@@ -28,7 +44,7 @@ impl Default for SpreadsheetDatabase {
 
 impl Drop for SpreadsheetDatabase {
     fn drop(&mut self) {
-        let logs = self.logs.lock().unwrap();
-        eprintln!("{:#?}", logs)
+        let _logs = self.logs.lock().unwrap();
+        // eprintln!("{:#?}", _logs)
     }
 }
