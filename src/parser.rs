@@ -1,30 +1,18 @@
-use salsa::Database;
-
-use crate::input::RawSpreadsheet;
+use crate::input::raw::RawSpreadsheet;
 use crate::ir::{Expr, ExprId, Op, StrId};
 use crate::lexer::Lexer;
+use salsa::Database;
 
 pub trait ParserGroup: Database {
-    fn parse_spreadsheet<'db>(&'db self) -> ParsedSpreadsheet<'db> {
-        parse_spreadsheet(self.as_dyn_database())
-    }
-
-    fn parse_cell_content<'db>(&'db self, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
-        parse_cell_content(self.as_dyn_database(), cell_content)
-    }
-
-    fn spreadsheet_input(&self) -> RawSpreadsheet {
-        spreadsheet_input(self.as_dyn_database())
+    fn parse_spreadsheet<'db>(
+        &'db self,
+        raw_spreadsheet: RawSpreadsheet,
+    ) -> ParsedSpreadsheet<'db> {
+        parse_spreadsheet(self.as_dyn_database(), raw_spreadsheet)
     }
 }
 
 impl<T: Database + ?Sized> ParserGroup for T {}
-
-// A tracked query for getting input.
-#[salsa::tracked]
-fn spreadsheet_input(db: &dyn Database) -> RawSpreadsheet {
-    RawSpreadsheet::new(db, Default::default())
-}
 
 #[salsa::tracked]
 pub struct ParsedSpreadsheet<'db> {
@@ -34,8 +22,11 @@ pub struct ParsedSpreadsheet<'db> {
 }
 
 #[salsa::tracked]
-fn parse_spreadsheet<'db>(db: &'db dyn Database) -> ParsedSpreadsheet<'db> {
-    let raw_cells = spreadsheet_input(db).cells(db);
+fn parse_spreadsheet<'db>(
+    db: &'db dyn Database,
+    raw_spreadsheet: RawSpreadsheet,
+) -> ParsedSpreadsheet<'db> {
+    let raw_cells = raw_spreadsheet.cells(db);
 
     let parsed_cells = raw_cells
         .iter()
