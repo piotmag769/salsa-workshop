@@ -41,9 +41,10 @@ fn parse_spreadsheet<'db>(
         })
         .collect();
 
-    todo!("Create parsed spreadsheet from `parsed_cells`")
+    ParsedSpreadsheet::new(db, parsed_cells)
 }
 
+#[salsa::tracked]
 fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
     let mut lexer = Lexer::new(cell_content.long(db));
 
@@ -108,8 +109,8 @@ fn merge_expressions<'db>(
         None => Some(expr_to_append),
         Some(expr) => match maybe_op {
             Some(op) => {
-                let lhs = todo!("intern `expr`");
-                let rhs = todo!("intern `expr_to_append`");
+                let lhs = ExprId::new(db, expr);
+                let rhs = ExprId::new(db, expr_to_append);
                 Some(Expr::Op(lhs, op, rhs))
             }
             None => None,

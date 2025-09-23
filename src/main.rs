@@ -20,7 +20,7 @@ fn main() {
     let db: SpreadsheetDatabase = Default::default();
     let cells = vec![row! {"5" | "$0:0 + $1:0"}, row! {"7" | "$0:1 + $1:0"}];
 
-    let raw_spreadsheet = todo!("create new spreadsheet input using `cells`");
+    let raw_spreadsheet = RawSpreadsheet::new(&db, cells);
 
     // Run queries.
     let parsed_spreadsheet = db.parse_spreadsheet(raw_spreadsheet);
