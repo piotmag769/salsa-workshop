@@ -1,30 +1,19 @@
 use salsa::Database;
 
-use crate::input::RawSpreadsheet;
+use crate::input::raw::RawSpreadsheet;
 use crate::ir::{Expr, ExprId, Op, StrId};
 use crate::lexer::Lexer;
 
 pub trait ParserGroup: Database {
-    fn parse_spreadsheet<'db>(&'db self) -> ParsedSpreadsheet<'db> {
-        parse_spreadsheet(self.as_dyn_database())
-    }
-
-    fn parse_cell_content<'db>(&'db self, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
-        parse_cell_content(self.as_dyn_database(), cell_content)
-    }
-
-    fn spreadsheet_input(&self) -> RawSpreadsheet {
-        spreadsheet_input(self.as_dyn_database())
+    fn parse_spreadsheet<'db>(
+        &'db self,
+        raw_spreadsheet: RawSpreadsheet,
+    ) -> ParsedSpreadsheet<'db> {
+        parse_spreadsheet(self.as_dyn_database(), raw_spreadsheet)
     }
 }
 
 impl<T: Database + ?Sized> ParserGroup for T {}
-
-// A tracked query for getting input.
-#[salsa::tracked]
-fn spreadsheet_input(db: &dyn Database) -> RawSpreadsheet {
-    RawSpreadsheet::new(db, Default::default())
-}
 
 #[salsa::tracked]
 pub struct ParsedSpreadsheet<'db> {
@@ -34,13 +23,16 @@ pub struct ParsedSpreadsheet<'db> {
 }
 
 #[salsa::tracked]
-fn parse_spreadsheet<'db>(db: &'db dyn Database) -> ParsedSpreadsheet<'db> {
-    let raw_cells = spreadsheet_input(db).cells(db);
+fn parse_spreadsheet<'db>(
+    db: &'db dyn Database,
+    raw_spreadsheet: RawSpreadsheet,
+) -> ParsedSpreadsheet<'db> {
+    let raw_cells = raw_spreadsheet.cells(db);
 
-    let parsed_cells = raw_cells
+    let parsed_cells: Vec<Vec<_>> = raw_cells
         .iter()
-        .map(|x| {
-            x.iter()
+        .map(|row| {
+            row.iter()
                 .map(|cell| {
                     let str_id = StrId::new(db, cell);
                     parse_cell_content(db, str_id)
@@ -49,10 +41,9 @@ fn parse_spreadsheet<'db>(db: &'db dyn Database) -> ParsedSpreadsheet<'db> {
         })
         .collect();
 
-    ParsedSpreadsheet::new(db, parsed_cells)
+    todo!("Create parsed spreadsheet from `parsed_cells`")
 }
 
-#[salsa::tracked]
 fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
     let mut lexer = Lexer::new(cell_content.long(db));
 
@@ -84,7 +75,6 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
         } else if let Some(op) = lexer.op() {
             // Expr cannot start with op.
             if already_parsed_expr.is_none() {
-                // TODO: add diagnostic
                 return None;
             }
 
@@ -92,7 +82,6 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
                 pending_op = Some(op);
             } else {
                 // Expr cannot have two consecutive ops.
-                // TODO: add diagnostic
                 return None;
             }
             continue;
@@ -119,8 +108,8 @@ fn merge_expressions<'db>(
         None => Some(expr_to_append),
         Some(expr) => match maybe_op {
             Some(op) => {
-                let lhs = ExprId::new(db, expr);
-                let rhs = ExprId::new(db, expr_to_append);
+                let lhs = todo!("intern `expr`");
+                let rhs = todo!("intern `expr_to_append`");
                 Some(Expr::Op(lhs, op, rhs))
             }
             None => None,
