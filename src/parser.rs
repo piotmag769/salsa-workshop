@@ -3,8 +3,6 @@ use crate::input::raw::RawSpreadsheet;
 use crate::ir::{Expr, ExprId, Op, StrId};
 use crate::lexer::Lexer;
 use salsa::{Accumulator, Database};
-use std::thread::sleep;
-use std::time::Duration;
 
 pub trait ParserGroup: Database {
     fn parse_spreadsheet<'db>(
@@ -83,8 +81,6 @@ fn parse_cell_content<'db>(
     db: &'db dyn Database,
     cell_content: StrId<'db>,
 ) -> Result<ExprId<'db>, String> {
-    sleep(Duration::from_secs(2));
-
     let mut lexer = Lexer::new(cell_content.long(db));
 
     let mut already_parsed_expr = None;

@@ -7,12 +7,15 @@ mod parser;
 mod solver;
 mod threads;
 
+use salsa::{Database, Setter};
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
+
 use crate::db::SpreadsheetDatabase;
-use crate::input::raw::RawSpreadsheet;
+use crate::input::file::{FileInput, FilePath, FilesOverrides};
 use crate::parser::ParserGroup;
 use crate::solver::SolverGroup;
-use crate::threads::parse_cell_on_another_thread;
-use salsa::Setter;
 
 macro_rules! row {
     ($($cell_str:literal) | *) => {
@@ -23,38 +26,50 @@ macro_rules! row {
 fn main() {
     let mut db: SpreadsheetDatabase = Default::default();
 
-    // This symbolises changes in the state of a spreadsheet over time.
-    let mut queue = [
-        [
-            row! {"$0:2" | "5 - 3"  | "$0:1 + $0:0"},
-            row! {"7" | "12" | "$1:0 + $1:1"},
-            row! {"1" | "13" | "$2:0 + $2:1"},
-        ],
-        // [
-        //     row! {"3" | "5 - 3"  | "$0:0 + $0:1"},
-        //     row! {"7" | "12" | "$1:0 + $1:1"},
-        //     row! {"420" | "13" | "$2:0 + $2:1 - 5"},
-        // ],
-    ]
-    .to_vec();
+    fs::copy("data/og.txt", "data/input.txt").unwrap();
+    let files_overrides = FilesOverrides::new(&db, Default::default());
 
-    let raw_spreadsheet = RawSpreadsheet::new(&db, Default::default());
+    // Run queries.
+    run_excel(&db, file_path(&db), files_overrides);
 
-    queue.reverse();
-    while let Some(cells) = queue.pop() {
-        // Set new input.
-        raw_spreadsheet.set_cells(&mut db).to(cells.to_vec());
+    // Simulate a user writing to a file in an editor.
+    files_overrides
+        .set_overrides(&mut db)
+        .to(HashMap::from_iter([(
+            PathBuf::from("data/input.txt"),
+            "2 | 4 | $0:0 + $0:1".to_string(),
+        )]));
 
-        let mut handles = Vec::new();
-        for _ in std::iter::repeat_n((), 3) {
-            let db_clone = db.clone();
-            let handle = parse_cell_on_another_thread(db_clone, raw_spreadsheet, 0, 0);
+    // Run queries.
+    run_excel(&db, file_path(&db), files_overrides);
 
-            handles.push(handle);
-        }
+    // Simulate a user saving a file.
+    fs::write("data/input.txt", "2 | 4 | $0:0 + $0:1".to_string()).unwrap();
+    files_overrides
+        .set_overrides(&mut db)
+        .to(Default::default());
 
-        for handle in handles {
-            eprintln!("{}", handle.join().unwrap());
-        }
+    // Run queries.
+    run_excel(&db, file_path(&db), files_overrides);
+}
+
+// To satisfy the borrow checker since FilePath holds db lifetime.
+fn file_path<'db>(db: &'db dyn Database) -> FilePath<'db> {
+    FilePath::new(db, PathBuf::from("data/input.txt"))
+}
+
+fn run_excel(db: &dyn Database, file_path: FilePath, files_overrides: FilesOverrides) {
+    // Run queries.
+    let raw_spreadsheet = db
+        .spreadsheet_from_file(file_path, files_overrides)
+        .unwrap();
+    let (parsed_spreadsheet, diags) = db.parse_spreadsheet(raw_spreadsheet);
+    if !diags.is_empty() {
+        eprintln!("Parser diags: {diags:#?}");
     }
+    let (solved_spreadsheet, diags) = db.solve_spreadsheet(parsed_spreadsheet);
+    if !diags.is_empty() {
+        eprintln!("Solver diags: {diags:#?}");
+    }
+    eprintln!("{solved_spreadsheet:?}");
 }
