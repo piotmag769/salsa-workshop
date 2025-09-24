@@ -2,7 +2,7 @@ use crate::diagnostic::Diagnostic;
 use crate::input::raw::RawSpreadsheet;
 use crate::ir::{Expr, ExprId, Op, StrId};
 use crate::lexer::Lexer;
-use salsa::Database;
+use salsa::{Accumulator, Database};
 
 pub trait ParserGroup: Database {
     fn parse_spreadsheet<'db>(
@@ -34,11 +34,27 @@ fn parse_spreadsheet<'db>(
 
     let parsed_cells: Vec<Vec<_>> = raw_cells
         .iter()
-        .map(|row| {
+        .enumerate()
+        .map(|(row_index, row)| {
             row.iter()
-                .map(|cell| {
+                .enumerate()
+                .map(|(col_index, cell)| {
                     let str_id = StrId::new(db, cell);
-                    parse_cell_content(db, str_id)
+                    match parse_cell_content(db, str_id) {
+                        Ok(expr) => Some(expr),
+                        Err(msg) => {
+                            // Do not pass row_index and col_index to
+                            // `parse_cell_content` for efficiency.
+                            // Accumulate a diagnostic here instead.
+                            Diagnostic {
+                                row: row_index,
+                                col: col_index,
+                                message: format!("{msg}: [{cell}]"),
+                            }
+                            .accumulate(db);
+                            None
+                        }
+                    }
                 })
                 .collect()
         })
@@ -48,7 +64,10 @@ fn parse_spreadsheet<'db>(
 }
 
 #[salsa::tracked]
-fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> Option<ExprId<'db>> {
+fn parse_cell_content<'db>(
+    db: &'db dyn Database,
+    cell_content: StrId<'db>,
+) -> Result<ExprId<'db>, String> {
     let mut lexer = Lexer::new(cell_content.long(db));
 
     let mut already_parsed_expr = None;
@@ -79,16 +98,14 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
         } else if let Some(op) = lexer.op() {
             // Expr cannot start with op.
             if already_parsed_expr.is_none() {
-                todo!("Accumulate a diagnostic");
-                return None;
+                return Err("Expr cannot start with op".to_string());
             }
 
             if pending_op.is_none() {
                 pending_op = Some(op);
             } else {
                 // Two consecutive ops.
-                todo!("Accumulate a diagnostic");
-                return None;
+                return Err("Two consecutive ops are disallowed".to_string());
             }
             continue;
         }
@@ -98,15 +115,15 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
 
     // Cell was not fully parsed.
     if lexer.can_consume() {
-        todo!("Accumulate a diagnostic");
-        None
+        Err("Cell could not be fully parsed".to_string())
     }
     // Expr cannot end with op.
     else if pending_op.is_some() {
-        todo!("Accumulate a diagnostic");
-        None
+        Err(" Expr cannot end with op".to_string())
     } else {
-        already_parsed_expr.map(|expr| ExprId::new(db, expr))
+        already_parsed_expr
+            .map(|expr| ExprId::new(db, expr))
+            .ok_or_else(|| "An empty cell.".to_string())
     }
 }
 
@@ -115,20 +132,20 @@ fn merge_expressions<'db>(
     maybe_op: Option<Op>,
     expr_to_append: Expr<'db>,
     db: &'db dyn Database,
-) -> Option<Expr<'db>> {
+) -> Result<Expr<'db>, String> {
     match maybe_lhs {
-        None => Some(expr_to_append),
+        None => Ok(expr_to_append),
         Some(expr) => match maybe_op {
             Some(op) => {
                 let lhs = ExprId::new(db, expr);
                 let rhs = ExprId::new(db, expr_to_append);
-                Some(Expr::Op(lhs, op, rhs))
+                Ok(Expr::Op(lhs, op, rhs))
             }
             // Two consecutive expressions without an operand between them.
-            None => {
-                todo!("Accumulate a diagnostic");
-                None
-            }
+            None => Err(
+                "Two consecutive expressions without an operand between them are disallowed"
+                    .to_string(),
+            ),
         },
     }
 }
