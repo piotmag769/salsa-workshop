@@ -13,7 +13,6 @@ use crate::parser::ParserGroup;
 use crate::solver::SolverGroup;
 use crate::threads::parse_cell_on_another_thread;
 use salsa::Setter;
-use std::any::Any;
 
 macro_rules! row {
     ($($cell_str:literal) | *) => {
@@ -53,9 +52,9 @@ fn main() {
             for col in 0..cols {
                 if row == 1 && col == 1 {
                     // TODO: uncomment after completing the task and see what happens!
-                    // raw_spreadsheet
-                    //     .set_cells(&mut db)
-                    //     .to(queue.pop().unwrap().to_vec());
+                    raw_spreadsheet
+                        .set_cells(&mut db)
+                        .to(queue.pop().unwrap().to_vec());
                 }
                 // Clone to send to another thread.
                 // SAFETY: do NOT mutate multiple databases or else the program may deadlock.

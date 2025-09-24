@@ -1,7 +1,7 @@
 use crate::db::SpreadsheetDatabase;
 use crate::input::raw::RawSpreadsheet;
 use crate::parser::ParserGroup;
-use salsa::{Cancelled, Database};
+use salsa::Cancelled;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::thread::JoinHandle;
 
@@ -12,7 +12,10 @@ pub fn parse_cell_on_another_thread(
     col: usize,
 ) -> JoinHandle<String> {
     let thread_closure = wrap_with_cancel_catcher(move || {
-        todo!("parse single cell here and return formatted result")
+        let parse_result = db
+            .parse_single_cell(raw_spreadsheet, row, col)
+            .map(|x| x.long(&db));
+        format!("{parse_result:?}")
     });
 
     std::thread::spawn(thread_closure)
