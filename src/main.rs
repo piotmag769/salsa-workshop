@@ -1,4 +1,5 @@
 mod db;
+mod diagnostic;
 mod input;
 mod ir;
 mod lexer;
@@ -24,10 +25,9 @@ fn main() {
     // This symbolises changes in the state of a spreadsheet over time.
     let mut queue = [
         [
-            // Oops - a cycle!
-            row! {"100 - $0:2" | "5"  | "$0:0 + $0:1"},
-            // row! {"7" | "12" | "$1:0 + $1:1"},
-            // row! {"1" | "13" | "$2:0 + $2:1"},
+            row! {"13 14" | "5 + "     | "$0:0 + $0:1"},
+            row! {"7 + -" | "12 + bro" | "$1:0 + $1:1"},
+            row! {"+ 1"   | "13"       | "$2:0 + $2:1"},
         ],
         // User changed cell 0:1.
         // [
@@ -58,7 +58,8 @@ fn main() {
         raw_spreadsheet.set_cells(&mut db).to(cells.to_vec());
 
         // Run queries.
-        let parsed_spreadsheet = db.parse_spreadsheet(raw_spreadsheet);
+        let (parsed_spreadsheet, diags) = db.parse_spreadsheet(raw_spreadsheet);
+        eprintln!("Parser diags: {diags:?}");
         let solved_spreadsheet = db.solve_spreadsheet(parsed_spreadsheet);
         eprintln!("{solved_spreadsheet:?}");
     }
