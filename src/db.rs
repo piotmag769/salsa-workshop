@@ -22,8 +22,9 @@ impl Default for SpreadsheetDatabase {
                     | EventKind::WillExecute { .. }
                     | EventKind::WillIterateCycle { .. }
                     | EventKind::DidDiscard { .. }
-                    | EventKind::DidSetCancellationFlag => {
-                        // eprintln!("{:?}", event.kind);
+                    | EventKind::DidSetCancellationFlag
+                    | EventKind::WillCheckCancellation => {
+                        eprintln!("{:?}", event.kind);
                         let mut logs = logs.lock().unwrap();
                         logs.push(format!("{:?}", event.kind))
                     }
@@ -33,8 +34,7 @@ impl Default for SpreadsheetDatabase {
                     | EventKind::DidReuseInternedValue { .. }
                     | EventKind::DidValidateInternedValue { .. } => {}
 
-                    EventKind::WillDiscardStaleOutput { .. } | EventKind::WillCheckCancellation => {
-                    }
+                    EventKind::WillDiscardStaleOutput { .. } => {}
                 }
             }))),
             logs,
