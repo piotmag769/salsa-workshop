@@ -52,5 +52,6 @@ fn solve_expr_handle_cycle<'db>(
     _expr_id: ExprId<'db>,
     _parsed_spreadsheet: ParsedSpreadsheet<'db>,
 ) -> Option<u32> {
+    todo!("Diagnostic");
     None
 }

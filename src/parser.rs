@@ -1,15 +1,18 @@
-use salsa::Database;
-
+use crate::diagnostic::Diagnostic;
 use crate::input::raw::RawSpreadsheet;
 use crate::ir::{Expr, ExprId, Op, StrId};
 use crate::lexer::Lexer;
+use salsa::Database;
 
 pub trait ParserGroup: Database {
     fn parse_spreadsheet<'db>(
         &'db self,
         raw_spreadsheet: RawSpreadsheet,
-    ) -> ParsedSpreadsheet<'db> {
-        parse_spreadsheet(self.as_dyn_database(), raw_spreadsheet)
+    ) -> (ParsedSpreadsheet<'db>, Vec<Diagnostic>) {
+        let parsed = parse_spreadsheet(self.as_dyn_database(), raw_spreadsheet);
+        let diags =
+            parse_spreadsheet::accumulated::<Diagnostic>(self.as_dyn_database(), raw_spreadsheet);
+        (parsed, diags.into_iter().cloned().collect())
     }
 }
 
@@ -76,13 +79,15 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
         } else if let Some(op) = lexer.op() {
             // Expr cannot start with op.
             if already_parsed_expr.is_none() {
+                todo!("Diagnostic");
                 return None;
             }
 
             if pending_op.is_none() {
                 pending_op = Some(op);
             } else {
-                // Expr cannot have two consecutive ops.
+                // Two consecutive ops.
+                todo!("Diagnostic");
                 return None;
             }
             continue;
@@ -91,8 +96,14 @@ fn parse_cell_content<'db>(db: &'db dyn Database, cell_content: StrId<'db>) -> O
         break;
     }
 
+    // Cell was not fully parsed.
+    if lexer.can_consume() {
+        todo!("Diagnostic");
+        None
+    }
     // Expr cannot end with op.
-    if pending_op.is_some() {
+    else if pending_op.is_some() {
+        todo!("Diagnostic");
         None
     } else {
         already_parsed_expr.map(|expr| ExprId::new(db, expr))
@@ -113,7 +124,11 @@ fn merge_expressions<'db>(
                 let rhs = ExprId::new(db, expr_to_append);
                 Some(Expr::Op(lhs, op, rhs))
             }
-            None => None,
+            // Two consecutive expressions without an operand between them.
+            None => {
+                todo!("Diagnostic");
+                None
+            }
         },
     }
 }
