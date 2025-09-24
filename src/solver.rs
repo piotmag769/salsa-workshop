@@ -23,6 +23,7 @@ pub trait SolverGroup: Database {
 
 impl<T: Database + ?Sized> SolverGroup for T {}
 
+// TODO: add reasonable cycle_result= arg to macro.
 #[salsa::tracked]
 fn solve_expr<'db>(
     db: &'db dyn Database,
