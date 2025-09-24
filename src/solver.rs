@@ -23,8 +23,7 @@ pub trait SolverGroup: Database {
 
 impl<T: Database + ?Sized> SolverGroup for T {}
 
-// TODO: add reasonable cycle_result= arg to macro.
-#[salsa::tracked]
+#[salsa::tracked(cycle_result=solve_expr_handle_cycle)]
 fn solve_expr<'db>(
     db: &'db dyn Database,
     expr_id: ExprId<'db>,
@@ -45,4 +44,13 @@ fn solve_expr<'db>(
             })
         }
     }
+}
+
+/// Return `None` since we cannot solve in the case of a cycle.
+fn solve_expr_handle_cycle<'db>(
+    _db: &'db dyn Database,
+    _expr_id: ExprId<'db>,
+    _parsed_spreadsheet: ParsedSpreadsheet<'db>,
+) -> Option<u32> {
+    None
 }
