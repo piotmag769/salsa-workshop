@@ -23,7 +23,7 @@ pub fn parse_cell_on_another_thread(
 
 fn wrap_with_cancel_catcher(func: impl FnOnce() -> String) -> impl FnOnce() -> String {
     || {
-        catch_unwind(AssertUnwindSafe(|| func())).unwrap_or_else(|err| {
+        catch_unwind(AssertUnwindSafe(func)).unwrap_or_else(|err| {
             let cancelled = err.downcast::<Cancelled>().unwrap();
             format!("{:?}", *cancelled)
         })

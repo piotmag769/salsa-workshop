@@ -30,15 +30,13 @@ fn main() {
             row! {"7" | "12" | "$1:0 + $1:1"},
             row! {"1" | "13" | "$2:0 + $2:1"},
         ],
-        [
-            row! {"3" | "5 - 3"  | "$0:0 + $0:1"},
-            row! {"7" | "12" | "$1:0 + $1:1"},
-            row! {"420" | "13" | "$2:0 + $2:1 - 5"},
-        ],
+        // [
+        //     row! {"3" | "5 - 3"  | "$0:0 + $0:1"},
+        //     row! {"7" | "12" | "$1:0 + $1:1"},
+        //     row! {"420" | "13" | "$2:0 + $2:1 - 5"},
+        // ],
     ]
     .to_vec();
-    let rows = queue[0].len();
-    let cols = queue[0][0].len();
 
     let raw_spreadsheet = RawSpreadsheet::new(&db, Default::default());
 
@@ -48,21 +46,11 @@ fn main() {
         raw_spreadsheet.set_cells(&mut db).to(cells.to_vec());
 
         let mut handles = Vec::new();
-        for row in 0..rows {
-            for col in 0..cols {
-                if row == 1 && col == 1 {
-                    // TODO: uncomment after completing the task and see what happens!
-                    raw_spreadsheet
-                        .set_cells(&mut db)
-                        .to(queue.pop().unwrap().to_vec());
-                }
-                // Clone to send to another thread.
-                // SAFETY: do NOT mutate multiple databases or else the program may deadlock.
-                let db_clone = db.clone();
-                let handle = parse_cell_on_another_thread(db_clone, raw_spreadsheet, row, col);
+        for _ in std::iter::repeat_n((), 3) {
+            let db_clone = db.clone();
+            let handle = parse_cell_on_another_thread(db_clone, raw_spreadsheet, 0, 0);
 
-                handles.push(handle);
-            }
+            handles.push(handle);
         }
 
         for handle in handles {
