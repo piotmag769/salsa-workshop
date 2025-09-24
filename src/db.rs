@@ -23,7 +23,7 @@ impl Default for SpreadsheetDatabase {
                     | EventKind::WillIterateCycle { .. }
                     | EventKind::DidDiscard { .. }
                     | EventKind::DidSetCancellationFlag => {
-                        eprintln!("{:?}", event.kind);
+                        // eprintln!("{:?}", event.kind);
                         let mut logs = logs.lock().unwrap();
                         logs.push(format!("{:?}", event.kind))
                     }

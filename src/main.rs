@@ -26,15 +26,14 @@ fn main() {
     let mut queue = [
         [
             row! {"13 14" | "5 + "     | "$0:0 + $0:1"},
-            row! {"7 + -" | "12 + bro" | "$1:0 + $1:1"},
-            row! {"+ 1"   | "13"       | "$2:0 + $2:1"},
+            // row! {"7 + -" | "12 + bro" | "$1:0 + $1:1"},
+            // row! {"+ 1"   | "13"       | "$2:0 + $2:1"},
         ],
-        // User changed cell 0:1.
-        // [
-        //     row! {"3" | "5 - 3"  | "$0:0 + $0:1"},
-        //     row! {"7" | "12" | "$1:0 + $1:1"},
-        //     row! {"1" | "13" | "$2:0 + $2:1"},
-        // ],
+        [
+            row! {"$0:2" | "5 - 3"  | "$0:1 + $0:0"},
+            // row! {"7" | "12" | "$1:0 + $1:1"},
+            // row! {"1" | "13" | "$2:0 + $2:1"},
+        ],
         // // User changed cell 2:2.
         // [
         //     row! {"3" | "5 - 3"  | "$0:0 + $0:1"},
@@ -59,8 +58,9 @@ fn main() {
 
         // Run queries.
         let (parsed_spreadsheet, diags) = db.parse_spreadsheet(raw_spreadsheet);
-        eprintln!("Parser diags: {diags:?}");
-        let solved_spreadsheet = db.solve_spreadsheet(parsed_spreadsheet);
+        eprintln!("Parser diags: {diags:#?}");
+        let (solved_spreadsheet, diags) = db.solve_spreadsheet(parsed_spreadsheet);
+        eprintln!("Solver diags: {diags:#?}");
         eprintln!("{solved_spreadsheet:?}");
     }
 }
