@@ -14,6 +14,19 @@ pub trait ParserGroup: Database {
             parse_spreadsheet::accumulated::<Diagnostic>(self.as_dyn_database(), raw_spreadsheet);
         (parsed, diags.into_iter().cloned().collect())
     }
+
+    fn parse_single_cell<'db>(
+        &'db self,
+        raw_spreadsheet: RawSpreadsheet,
+        row: usize,
+        col: usize,
+    ) -> Result<ExprId<'db>, String> {
+        let db = self.as_dyn_database();
+        let cell_content = &raw_spreadsheet.cells(db)[row][col];
+        let cell_content = StrId::new(db, cell_content);
+
+        parse_cell_content(db, cell_content)
+    }
 }
 
 impl<T: Database + ?Sized> ParserGroup for T {}
